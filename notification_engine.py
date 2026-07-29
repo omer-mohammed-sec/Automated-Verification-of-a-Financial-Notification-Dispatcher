@@ -15,12 +15,7 @@ class SMSGatewayClient:
 
 
 class NotificationEngine:
-    def __init__(
-        self,
-        repo: WalletRepository,
-        primary_gateway: SMSGatewayClient,
-        backup_gateway: SMSGatewayClient = None,
-    ):
+    def __init__(self, repo, primary_gateway, backup_gateway=None):
         self.repo = repo
         self.primary_gateway = primary_gateway
         self.backup_gateway = backup_gateway

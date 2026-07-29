@@ -4,70 +4,58 @@ from notification_engine import NotificationEngine, WalletRepository, SMSGateway
 
 
 def test_validation_boundary():
-    mock_repo = Mock(spec=WalletRepository)
-    mock_primary = Mock(spec=SMSGatewayClient)
-    mock_repo.get_status.return_value = "PENDING"
-    mock_primary.send_sms.return_value = True
+    repo, primary = Mock(spec=WalletRepository), Mock(spec=SMSGatewayClient)
+    repo.get_status.return_value, primary.send_sms.return_value = "PENDING", True
+    engine = NotificationEngine(repo, primary)
 
-    engine = NotificationEngine(mock_repo, mock_primary)
     assert engine.dispatch("msg1", "+250780000000", "Hello") == "SENT_PRIMARY"
+    repo.get_status.reset_mock()
 
-    mock_repo.get_status.reset_mock()
     for phone in ["0780000000", "+00012"]:
         with pytest.raises(ValueError):
             engine.dispatch("msg2", phone, "Hello")
-        mock_repo.get_status.assert_not_called()
+        repo.get_status.assert_not_called()
 
 
 def test_idempotency_mock_check():
-    mock_repo = Mock(spec=WalletRepository)
-    mock_primary = Mock(spec=SMSGatewayClient)
-    mock_repo.get_status.return_value = "SENT"
+    repo, primary = Mock(spec=WalletRepository), Mock(spec=SMSGatewayClient)
+    repo.get_status.return_value = "SENT"
+    engine = NotificationEngine(repo, primary)
 
-    engine = NotificationEngine(mock_repo, mock_primary)
     assert engine.dispatch("msg1", "+250780000000", "Hello") == "ALREADY_SENT"
-    mock_primary.send_sms.assert_not_called()
+    primary.send_sms.assert_not_called()
 
 
 def test_retry_logic_verification():
-    mock_repo = Mock(spec=WalletRepository)
-    mock_primary = Mock(spec=SMSGatewayClient)
-    mock_repo.get_status.return_value = "PENDING"
-    mock_primary.send_sms.side_effect = [Exception("Error"), True]
+    repo, primary = Mock(spec=WalletRepository), Mock(spec=SMSGatewayClient)
+    repo.get_status.return_value = "PENDING"
+    primary.send_sms.side_effect = [Exception("Timeout"), True]
 
-    engine = NotificationEngine(mock_repo, mock_primary)
+    engine = NotificationEngine(repo, primary)
     assert engine.dispatch("msg1", "+250780000000", "Hello") == "SENT_PRIMARY"
-    assert mock_primary.send_sms.call_count == 2
-    mock_repo.save_status.assert_called_with("msg1", "+250780000000", "SENT")
+    assert primary.send_sms.call_count == 2
+    repo.save_status.assert_called_with("msg1", "+250780000000", "SENT")
 
 
 def test_fallback_gateway_failover():
-    mock_repo = Mock(spec=WalletRepository)
-    mock_primary = Mock(spec=SMSGatewayClient)
-    mock_backup = Mock(spec=SMSGatewayClient)
+    repo, primary, backup = Mock(spec=WalletRepository), Mock(spec=SMSGatewayClient), Mock(spec=SMSGatewayClient)
+    repo.get_status.return_value = "PENDING"
+    primary.send_sms.side_effect = [Exception("Fail1"), Exception("Fail2")]
+    backup.send_sms.return_value = True
 
-    mock_repo.get_status.return_value = "PENDING"
-    mock_primary.send_sms.side_effect = [Exception("Fail 1"), Exception("Fail 2")]
-    mock_backup.send_sms.return_value = True
-
-    engine = NotificationEngine(mock_repo, mock_primary, mock_backup)
+    engine = NotificationEngine(repo, primary, backup)
     assert engine.dispatch("msg1", "+250780000000", "Hello") == "SENT_BACKUP"
-    assert mock_primary.send_sms.call_count == 2
-    mock_repo.save_status.assert_called_with("msg1", "+250780000000", "SENT_BACKUP")
+    assert primary.send_sms.call_count == 2
+    repo.save_status.assert_called_with("msg1", "+250780000000", "SENT_BACKUP")
 
 
 def test_complete_failure_path():
-    mock_repo = Mock(spec=WalletRepository)
-    mock_primary = Mock(spec=SMSGatewayClient)
-    mock_backup = Mock(spec=SMSGatewayClient)
+    repo, primary, backup = Mock(spec=WalletRepository), Mock(spec=SMSGatewayClient), Mock(spec=SMSGatewayClient)
+    repo.get_status.return_value = "PENDING"
+    primary.send_sms.side_effect = Exception("P_Fail")
+    backup.send_sms.side_effect = Exception("B_Fail")
 
-    mock_repo.get_status.return_value = "PENDING"
-    mock_primary.send_sms.side_effect = Exception("Primary Error")
-    mock_backup.send_sms.side_effect = Exception("Backup Error")
-
-    engine = NotificationEngine(mock_repo, mock_primary, mock_backup)
-
+    engine = NotificationEngine(repo, primary, backup)
     with pytest.raises(RuntimeError):
         engine.dispatch("msg1", "+250780000000", "Hello")
-
-    mock_repo.save_status.assert_called_with("msg1", "+250780000000", "FAILED")
+    repo.save_status.assert_called_with("msg1", "+250780000000", "FAILED")
