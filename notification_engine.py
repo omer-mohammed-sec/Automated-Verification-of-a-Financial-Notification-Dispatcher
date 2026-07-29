@@ -2,8 +2,6 @@ import re
 
 
 class WalletRepository:
-    """Abstract interface defining database contracts."""
-
     def get_status(self, msg_id: str) -> str:
         raise NotImplementedError
 
@@ -12,15 +10,11 @@ class WalletRepository:
 
 
 class SMSGatewayClient:
-    """Abstract interface representing external telecom provider."""
-
     def send_sms(self, phone: str, message: str) -> bool:
         raise NotImplementedError
 
 
 class NotificationEngine:
-    """Core Business Logic to be verified."""
-
     def __init__(
         self,
         repo: WalletRepository,
@@ -35,11 +29,10 @@ class NotificationEngine:
         if not re.match(r"^\+[1-9]\d{1,14}$", phone):
             raise ValueError("Invalid E.164 phone number format")
 
-        existing_status = self.repo.get_status(msg_id)
-        if existing_status == "SENT":
+        if self.repo.get_status(msg_id) == "SENT":
             return "ALREADY_SENT"
 
-        for attempt in range(2):
+        for _ in range(2):
             try:
                 if self.primary_gateway.send_sms(phone, message):
                     self.repo.save_status(msg_id, phone, "SENT")
