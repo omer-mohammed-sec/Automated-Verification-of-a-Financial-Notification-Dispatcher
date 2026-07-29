@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-# Add project root to sys.path for importing notification_engine
+# Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from unittest.mock import Mock
@@ -18,15 +18,14 @@ def test_validation_boundary():
 
     engine = NotificationEngine(mock_repo, mock_primary)
 
-    # Valid phone number test
+    # Test valid phone
     result = engine.dispatch("msg_1", "+250780000000", "Hello")
     assert result == "SENT_PRIMARY"
 
-    # Invalid phone numbers test
+    # Test invalid phones
     mock_repo.get_status.reset_mock()
-    invalid_phones = ["0780000000", "+00012"]
-    for phone in invalid_phones:
-        with pytest.raises(ValueError):
+    for phone in ["0780000000", "+00012"]:
+        with pytest.raises(ValueError, match="Invalid E.164 phone number format"):
             engine.dispatch("msg_2", phone, "Hello")
         mock_repo.get_status.assert_not_called()
 
@@ -49,8 +48,7 @@ def test_retry_logic_verification():
     mock_primary = Mock(spec=SMSGatewayClient)
 
     mock_repo.get_status.return_value = "PENDING"
-    # Primary gateway fails on 1st attempt, succeeds on 2nd attempt
-    mock_primary.send_sms.side_effect = [Exception("Gateway Timeout"), True]
+    mock_primary.send_sms.side_effect = [Exception("Timeout"), True]
 
     engine = NotificationEngine(mock_repo, mock_primary)
     result = engine.dispatch("msg_101", "+250780000000", "Hello")
@@ -66,10 +64,7 @@ def test_fallback_gateway_failover():
     mock_backup = Mock(spec=SMSGatewayClient)
 
     mock_repo.get_status.return_value = "PENDING"
-    mock_primary.send_sms.side_effect = [
-        Exception("Primary Timeout 1"),
-        Exception("Primary Timeout 2"),
-    ]
+    mock_primary.send_sms.side_effect = [Exception("Fail 1"), Exception("Fail 2")]
     mock_backup.send_sms.return_value = True
 
     engine = NotificationEngine(mock_repo, mock_primary, mock_backup)
@@ -91,7 +86,7 @@ def test_complete_failure_path():
 
     engine = NotificationEngine(mock_repo, mock_primary, mock_backup)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="All gateways failed to deliver message"):
         engine.dispatch("msg_103", "+250780000000", "Hello")
 
     mock_repo.save_status.assert_called_with("msg_103", "+250780000000", "FAILED")
