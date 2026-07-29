@@ -1,18 +1,11 @@
 import re
 
-
 class WalletRepository:
-    def get_status(self, msg_id: str) -> str:
-        raise NotImplementedError
-
-    def save_status(self, msg_id: str, phone: str, status: str):
-        raise NotImplementedError
-
+    def get_status(self, msg_id: str) -> str: raise NotImplementedError
+    def save_status(self, msg_id: str, phone: str, status: str): raise NotImplementedError
 
 class SMSGatewayClient:
-    def send_sms(self, phone: str, message: str) -> bool:
-        raise NotImplementedError
-
+    def send_sms(self, phone: str, message: str) -> bool: raise NotImplementedError
 
 class NotificationEngine:
     def __init__(self, repo, primary_gateway, backup_gateway=None):
@@ -23,7 +16,6 @@ class NotificationEngine:
     def dispatch(self, msg_id: str, phone: str, message: str) -> str:
         if not re.match(r"^\+[1-9]\d{1,14}$", phone):
             raise ValueError("Invalid E.164 phone number format")
-
         if self.repo.get_status(msg_id) == "SENT":
             return "ALREADY_SENT"
 
@@ -32,16 +24,14 @@ class NotificationEngine:
                 if self.primary_gateway.send_sms(phone, message):
                     self.repo.save_status(msg_id, phone, "SENT")
                     return "SENT_PRIMARY"
-            except Exception:
-                pass
+            except Exception: pass
 
         if self.backup_gateway:
             try:
                 if self.backup_gateway.send_sms(phone, message):
                     self.repo.save_status(msg_id, phone, "SENT_BACKUP")
                     return "SENT_BACKUP"
-            except Exception:
-                pass
+            except Exception: pass
 
         self.repo.save_status(msg_id, phone, "FAILED")
         raise RuntimeError("All gateways failed to deliver message")
