@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from unittest.mock import Mock
 import pytest
 from notification_engine import NotificationEngine, WalletRepository, SMSGatewayClient
