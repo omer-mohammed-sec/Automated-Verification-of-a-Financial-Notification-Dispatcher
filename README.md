@@ -1,7 +1,7 @@
 # Automated Verification of a Financial Notification Dispatcher
 
 **Registration Number:** 30027/2025  
-**Course:** Software Verification, Testing & CI/CD  
+**Course:** Software Verification and validation
 
 ## Description
 Solution for the practical exam verifying the `NotificationEngine` service. It includes unit tests with mocks, integration tests with in-memory SQLite, and a GitHub Actions CI pipeline.
