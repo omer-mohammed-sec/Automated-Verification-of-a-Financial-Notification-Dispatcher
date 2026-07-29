@@ -1,5 +1,7 @@
 import sys
 from pathlib import Path
+
+# Add project root to sys.path for importing notification_engine
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import sqlite3
@@ -58,7 +60,7 @@ def test_successful_dispatch_integration(db_connection):
     mock_primary.send_sms.return_value = True
 
     engine = NotificationEngine(repo, mock_primary)
-    status_result = engine.dispatch("msg_001", "+250780000000", "Integration Test Message")
+    status_result = engine.dispatch("msg_001", "+250780000000", "Hello World")
 
     assert status_result == "SENT_PRIMARY"
 
@@ -85,7 +87,6 @@ def test_mock_lie_demonstration(db_connection):
     mock_primary.send_sms.return_value = True
 
     mock_engine = NotificationEngine(mock_repo, mock_primary)
-    # Unit test succeeds because save_status SQL is never executed against SQLite
     unit_result = mock_engine.dispatch("msg_002", "+250780000000", "Hello")
     assert unit_result == "SENT_PRIMARY"
 
@@ -93,6 +94,5 @@ def test_mock_lie_demonstration(db_connection):
     faulty_repo = SQLiteWalletRepository(db_connection, table_name="msg_logs")
     real_engine = NotificationEngine(faulty_repo, mock_primary)
 
-    # Real database execution fails because table 'msg_logs' does not exist in SQLite schema
     with pytest.raises(sqlite3.OperationalError, match="no such table: msg_logs"):
         real_engine.dispatch("msg_002", "+250780000000", "Hello")
