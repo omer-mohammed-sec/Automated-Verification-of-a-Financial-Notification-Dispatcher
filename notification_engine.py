@@ -24,14 +24,16 @@ class NotificationEngine:
                 if self.primary_gateway.send_sms(phone, message):
                     self.repo.save_status(msg_id, phone, "SENT")
                     return "SENT_PRIMARY"
-            except Exception: pass
+            except Exception:
+                pass
 
         if self.backup_gateway:
             try:
                 if self.backup_gateway.send_sms(phone, message):
                     self.repo.save_status(msg_id, phone, "SENT_BACKUP")
                     return "SENT_BACKUP"
-            except Exception: pass
+            except Exception:
+                pass
 
         self.repo.save_status(msg_id, phone, "FAILED")
         raise RuntimeError("All gateways failed to deliver message")
