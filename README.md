@@ -1,7 +1,6 @@
 # Automated Verification of a Financial Notification Dispatcher
-
-**Student Registration Number:** 30027/2025  
-**Course:** Software Verification and validation
+ Registration Number: 30027/2025  
+Course: Software Verification and validation
 
 
 ## Project Overview
